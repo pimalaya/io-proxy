@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-26
+
 ### Added
 
 - Added the `ProxyCoroutine` trait mirroring `core::ops::Coroutine`.
@@ -26,3 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `connect_socks5` and `connect_http` drive a handshake coroutine over any `Read + Write` stream via exact reads, returning once the tunnel is open with the stream positioned on the target's first byte. Errors surface through `ProxyClientError`.
 
 - Added the `socks5` and `http` cargo features gating each protocol independently, with credentials redacted from debug output and logs.
+
+[unreleased]: https://github.com/pimalaya/io-proxy/compare/v0.1.0..HEAD
+[0.1.0]: https://github.com/pimalaya/io-proxy/compare/root..v0.1.0
