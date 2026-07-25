@@ -1,0 +1,36 @@
+[package]
+name = "io-proxy"
+description = "Proxy client library for Rust"
+version = "0.1.0"
+authors = ["Clément DOUIN (soywod) <pimalaya.org@posteo.net>"]
+rust-version = "1.87"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+categories = ["api-bindings", "no-std", "network-programming"]
+keywords = ["io-free", "no-std", "coroutine", "proxy", "socks"]
+homepage = "https://pimalaya.org"
+documentation = "https://docs.rs/io-proxy/latest/io_proxy"
+repository = "https://github.com/pimalaya/io-proxy"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["socks5", "http", "client"]
+socks5 = []
+http = ["dep:base64"]
+client = []
+
+[[example]]
+name = "std_socks5"
+path = "examples/std_socks5.rs"
+required-features = ["client", "socks5"]
+
+[dev-dependencies]
+env_logger = "0.11"
+
+[dependencies]
+base64 = { version = "0.23", default-features = false, features = ["alloc"], optional = true }
+log = { version = "0.4", default-features = false }
+thiserror = { version = "2", default-features = false }
