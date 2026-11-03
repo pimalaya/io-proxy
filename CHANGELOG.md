@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the base64 crate with [base64-codec](https://crates.io/crates/base64-codec) for the HTTP `Proxy-Authorization` header.
+
+- Changed the minimum Rust version to 1.89, base64-codec's.
+
 ## [0.1.0] - 2026-07-26
 
 ### Added

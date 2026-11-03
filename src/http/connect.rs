@@ -19,7 +19,7 @@ use alloc::{
 };
 use core::fmt;
 
-use base64::{Engine, engine::general_purpose::STANDARD};
+use base64_codec::codec::Base64Codec;
 use log::{debug, trace};
 use thiserror::Error;
 
@@ -66,8 +66,11 @@ impl HttpCredentials {
 
     /// Renders the `Proxy-Authorization` header value: `Basic <base64>`.
     fn header_value(&self) -> String {
-        let token = STANDARD.encode(format!("{}:{}", self.username, self.password));
-        format!("Basic {token}")
+        let pair = format!("{}:{}", self.username, self.password);
+        let mut value = b"Basic ".to_vec();
+        Base64Codec::default().encode_vec(pair.as_bytes(), &mut value);
+        // NOTE: the base64 alphabet is ASCII, so this never falls back.
+        String::from_utf8(value).unwrap_or_default()
     }
 }
 
@@ -221,6 +224,13 @@ mod tests {
         let req = String::from_utf8(req).unwrap();
         // base64("user:pass") = dXNlcjpwYXNz
         assert!(req.contains("Proxy-Authorization: Basic dXNlcjpwYXNz\r\n"));
+
+        let creds = HttpCredentials::new("a", "b1");
+        let mut cor = HttpConnect::new("h", 1, Some(creds));
+        let req = wants_write(&mut cor, None);
+        let req = String::from_utf8(req).unwrap();
+        // base64("a:b1") = YTpiMQ==
+        assert!(req.contains("Proxy-Authorization: Basic YTpiMQ==\r\n"));
     }
 
     #[test]
