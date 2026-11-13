@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
 ### Added
 
 - Added `socks::v5::address::Socks5Domain`, a domain name of 1 to 255 bytes that only `Socks5Address::new` builds.
@@ -77,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added the `socks5` and `http` cargo features gating each protocol independently, with credentials redacted from debug output and logs.
 
-[unreleased]: https://github.com/pimalaya/io-proxy/compare/v0.1.1..HEAD
+[unreleased]: https://github.com/pimalaya/io-proxy/compare/v0.2.0..HEAD
+[0.2.0]: https://github.com/pimalaya/io-proxy/compare/v0.1.1..v0.2.0
 [0.1.1]: https://github.com/pimalaya/io-proxy/compare/v0.1.0..v0.1.1
 [0.1.0]: https://github.com/pimalaya/io-proxy/compare/root..v0.1.0
