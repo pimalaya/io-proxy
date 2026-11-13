@@ -92,7 +92,7 @@ pub fn connect_http<S: Read + Write>(
     port: u16,
     credentials: Option<HttpCredentials>,
 ) -> Result<(), ProxyClientError> {
-    run(stream, HttpConnect::new(host, port, credentials))
+    run(stream, HttpConnect::new(host, port, credentials)?)
 }
 
 #[cfg(all(test, feature = "socks5"))]
@@ -139,12 +139,8 @@ mod socks5_tests {
             written: Vec::new(),
         };
 
-        connect_socks5(
-            &mut fake,
-            Socks5Address::Domain("example.com".into(), 993),
-            None,
-        )
-        .unwrap();
+        let target = Socks5Address::new("example.com", 993).unwrap();
+        connect_socks5(&mut fake, target, None).unwrap();
 
         // greeting was written
         assert_eq!(&fake.written[..3], [0x05, 0x01, 0x00]);
@@ -153,6 +149,25 @@ mod socks5_tests {
         let mut rest = Vec::new();
         fake.read_to_end(&mut rest).unwrap();
         assert_eq!(rest, [0xAB]);
+    }
+
+    #[test]
+    fn end_of_stream_surfaces_as_io_error() {
+        // method selection, then a reply head without its bound address
+        let server = vec![0x05, 0x00, 0x05, 0x00, 0x00, 0x01];
+
+        let mut fake = Fake {
+            to_read: Cursor::new(server),
+            written: Vec::new(),
+        };
+
+        let target = Socks5Address::new("example.com", 993).unwrap();
+        let err = connect_socks5(&mut fake, target, None).unwrap_err();
+
+        assert!(
+            matches!(&err, ProxyClientError::Io(err) if err.kind() == io::ErrorKind::UnexpectedEof),
+            "got {err:?}"
+        );
     }
 }
 
@@ -164,6 +179,7 @@ mod http_tests {
     };
 
     use super::*;
+    use crate::http::connect::HttpConnectError;
 
     struct Fake {
         to_read: Cursor<Vec<u8>>,
@@ -205,5 +221,21 @@ mod http_tests {
         let mut rest = Vec::new();
         fake.read_to_end(&mut rest).unwrap();
         assert_eq!(rest, [0xAB]);
+    }
+
+    #[test]
+    fn invalid_host_writes_nothing() {
+        let mut fake = Fake {
+            to_read: Cursor::new(Vec::new()),
+            written: Vec::new(),
+        };
+
+        let err = connect_http(&mut fake, "h\r\nX-Injected: 1", 993, None).unwrap_err();
+
+        assert!(
+            matches!(err, ProxyClientError::Http(HttpConnectError::InvalidHost)),
+            "got {err:?}"
+        );
+        assert!(fake.written.is_empty());
     }
 }

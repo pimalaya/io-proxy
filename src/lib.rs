@@ -40,9 +40,11 @@
 //! an intermediate yield or a terminal completion. The read yield carries
 //! an exact byte count ([`coroutine::ProxyYield::WantsRead`]): SOCKS5
 //! reads its length-framed messages directly, and HTTP CONNECT scans for
-//! the header terminator one byte at a time — so neither ever consumes
+//! the header terminator one byte at a time, so neither ever consumes
 //! tunnel payload past the handshake, leaving the socket positioned
-//! exactly at the start of the tunnel.
+//! exactly at the start of the tunnel. An empty read (`Some(&[])`) stands
+//! for the end of the stream and completes the handshake with an `Eof`
+//! error.
 //!
 //! ## Conventions
 //!

@@ -20,6 +20,7 @@ use io_proxy::{
     http::connect::{HttpConnectError, HttpCredentials},
     socks::v5::{address::Socks5Address, auth::Socks5Credentials, connect::Socks5ConnectError},
 };
+use secrecy::SecretString;
 
 const PROXY_HOST: &str = "127.0.0.1";
 const TARGET_HOST: &str = "echo";
@@ -62,7 +63,7 @@ fn socks5_no_auth() {
 fn socks5_auth() {
     let _ = env_logger::try_init();
     let mut tcp = proxy(1081);
-    let creds = Socks5Credentials::new("test", "secret").unwrap();
+    let creds = Socks5Credentials::new("test", SecretString::from("secret")).unwrap();
     connect_socks5(&mut tcp, target(), Some(creds)).expect("socks5 auth handshake");
     assert_banner(tcp);
 }
@@ -72,7 +73,7 @@ fn socks5_auth() {
 fn socks5_wrong_credentials() {
     let _ = env_logger::try_init();
     let mut tcp = proxy(1081);
-    let creds = Socks5Credentials::new("test", "wrong").unwrap();
+    let creds = Socks5Credentials::new("test", SecretString::from("wrong")).unwrap();
     let err = connect_socks5(&mut tcp, target(), Some(creds)).unwrap_err();
     // How a proxy signals bad credentials is implementation-dependent:
     // some fail the RFC 1929 sub-negotiation (AuthRejected), others accept
@@ -103,7 +104,7 @@ fn http_no_auth() {
 fn http_auth() {
     let _ = env_logger::try_init();
     let mut tcp = proxy(3129);
-    let creds = HttpCredentials::new("test", "secret");
+    let creds = HttpCredentials::new("test", SecretString::from("secret"));
     connect_http(&mut tcp, TARGET_HOST, TARGET_PORT, Some(creds)).expect("http auth connect");
     assert_banner(tcp);
 }
@@ -113,7 +114,7 @@ fn http_auth() {
 fn http_wrong_credentials() {
     let _ = env_logger::try_init();
     let mut tcp = proxy(3129);
-    let creds = HttpCredentials::new("test", "wrong");
+    let creds = HttpCredentials::new("test", SecretString::from("wrong"));
     let err = connect_http(&mut tcp, TARGET_HOST, TARGET_PORT, Some(creds)).unwrap_err();
     assert!(
         matches!(err, ProxyClientError::Http(HttpConnectError::Refused(407))),

@@ -4,6 +4,7 @@
 //! (`Yielded` / `Complete`). Shared by every proxy protocol.
 
 use alloc::vec::Vec;
+use core::fmt;
 
 /// State yielded by a [`ProxyCoroutine::resume`] step.
 #[derive(Debug)]
@@ -28,7 +29,8 @@ pub trait ProxyCoroutine {
     ///
     /// Pass [`None`] initially and after every [`ProxyYield::WantsWrite`];
     /// pass `Some(data)` after a [`ProxyYield::WantsRead(n)`] with exactly
-    /// the `n` bytes that were read.
+    /// the `n` bytes that were read, or `Some(&[])` when the stream ended
+    /// before them.
     ///
     /// [`ProxyYield::WantsRead(n)`]: ProxyYield::WantsRead
     fn resume(&mut self, arg: Option<&[u8]>) -> ProxyCoroutineState<Self::Yield, Self::Return>;
@@ -43,12 +45,34 @@ pub trait ProxyCoroutine {
 /// messages; delimiter-framed ones (HTTP CONNECT) request one byte at a
 /// time while scanning.
 ///
+/// The [`Debug`] output gives the length of the bytes to write, never the
+/// bytes: they may carry credentials.
+///
 /// [`WantsRead`]: ProxyYield::WantsRead
-#[derive(Debug)]
 pub enum ProxyYield {
     /// The coroutine wants exactly this many bytes read from the stream
     /// and handed back on the next resume.
     WantsRead(usize),
     /// The coroutine wants these bytes written to the stream.
     WantsWrite(Vec<u8>),
+}
+
+impl fmt::Debug for ProxyYield {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WantsRead(n) => write!(f, "WantsRead({n})"),
+            Self::WantsWrite(bytes) => write!(f, "WantsWrite([{} bytes])", bytes.len()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::coroutine::*;
+
+    #[test]
+    fn debug_omits_written_bytes() {
+        let rendered = format!("{:?}", ProxyYield::WantsWrite(b"secret".to_vec()));
+        assert_eq!(rendered, "WantsWrite([6 bytes])");
+    }
 }

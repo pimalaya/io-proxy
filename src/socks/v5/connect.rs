@@ -57,10 +57,13 @@ pub enum Socks5ConnectError {
     /// The proxy reply used an address type the client cannot parse.
     #[error("SOCKS5 connect failed: proxy returned unknown address type {0:#04x}")]
     UnknownAddressType(u8),
-    /// A message from the proxy was shorter than its fixed framing
-    /// requires (a misbehaving pump or proxy).
+    /// A read did not carry the byte count its framing requires (a
+    /// misbehaving pump).
     #[error("SOCKS5 connect failed: proxy sent a malformed or truncated message")]
     Malformed,
+    /// The stream reached EOF before the handshake was complete.
+    #[error("SOCKS5 connect failed: reached unexpected EOF")]
+    Eof,
 }
 
 /// Handshake step; each read step yields [`ProxyYield::WantsRead`] with an
@@ -131,6 +134,10 @@ impl ProxyCoroutine for Socks5Connect {
 
     fn resume(&mut self, mut arg: Option<&[u8]>) -> ProxyCoroutineState<Self::Yield, Self::Return> {
         use ProxyCoroutineState::{Complete, Yielded};
+
+        if matches!(arg, Some([])) && !matches!(self.state, State::Done) {
+            return Complete(Err(Socks5ConnectError::Eof));
+        }
 
         loop {
             match self.state {
@@ -245,8 +252,11 @@ impl ProxyCoroutine for Socks5Connect {
                 }
 
                 State::ReplyTail(n) => {
-                    if arg.take().is_none() {
+                    let Some(data) = arg.take() else {
                         return Yielded(ProxyYield::WantsRead(n));
+                    };
+                    if data.len() != n {
+                        return Complete(Err(Socks5ConnectError::Malformed));
                     }
                     debug!("socks5 tunnel established");
                     self.state = State::Done;
@@ -261,14 +271,16 @@ impl ProxyCoroutine for Socks5Connect {
 
 #[cfg(test)]
 mod tests {
+    use secrecy::SecretString;
+
     use super::*;
 
     fn no_auth() -> Socks5Connect {
-        Socks5Connect::new(Socks5Address::Domain("example.com".into(), 993), None)
+        Socks5Connect::new(Socks5Address::new("example.com", 993).unwrap(), None)
     }
 
     fn with_auth() -> Socks5Connect {
-        let creds = Socks5Credentials::new("user", "pass").unwrap();
+        let creds = Socks5Credentials::new("user", SecretString::from("pass")).unwrap();
         Socks5Connect::new(Socks5Address::Ipv4([1, 2, 3, 4].into(), 25), Some(creds))
     }
 
@@ -396,5 +408,38 @@ mod tests {
         wants_read(&mut cor, None);
         let err = complete_err(&mut cor, Some(&[0x04, 0x00]));
         assert_eq!(err, Socks5ConnectError::UnexpectedVersion(0x04));
+    }
+
+    #[test]
+    fn eof_in_method_selection_returns_eof() {
+        let mut cor = no_auth();
+        wants_write(&mut cor, None);
+        wants_read(&mut cor, None);
+        let err = complete_err(&mut cor, Some(&[]));
+        assert_eq!(err, Socks5ConnectError::Eof);
+    }
+
+    #[test]
+    fn eof_in_reply_tail_returns_eof() {
+        let mut cor = no_auth();
+        wants_write(&mut cor, None);
+        wants_read(&mut cor, None);
+        wants_write(&mut cor, Some(&[0x05, 0x00]));
+        wants_read(&mut cor, None);
+        assert_eq!(wants_read(&mut cor, Some(&[0x05, 0x00, 0x00, 0x01])), 6);
+        let err = complete_err(&mut cor, Some(&[]));
+        assert_eq!(err, Socks5ConnectError::Eof);
+    }
+
+    #[test]
+    fn short_reply_tail_returns_malformed() {
+        let mut cor = no_auth();
+        wants_write(&mut cor, None);
+        wants_read(&mut cor, None);
+        wants_write(&mut cor, Some(&[0x05, 0x00]));
+        wants_read(&mut cor, None);
+        assert_eq!(wants_read(&mut cor, Some(&[0x05, 0x00, 0x00, 0x01])), 6);
+        let err = complete_err(&mut cor, Some(&[0, 0]));
+        assert_eq!(err, Socks5ConnectError::Malformed);
     }
 }

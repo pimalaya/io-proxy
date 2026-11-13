@@ -8,6 +8,7 @@ use alloc::{
 };
 use core::fmt;
 
+use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 
 use crate::socks::v5::AUTH_VERSION;
@@ -29,7 +30,7 @@ pub enum Socks5CredentialsError {
 #[derive(Clone)]
 pub struct Socks5Credentials {
     username: String,
-    password: String,
+    password: SecretString,
 }
 
 impl Socks5Credentials {
@@ -37,17 +38,20 @@ impl Socks5Credentials {
     /// limit RFC 1929 imposes on each.
     pub fn new(
         username: &str,
-        password: &str,
+        password: SecretString,
     ) -> Result<Socks5Credentials, Socks5CredentialsError> {
         if username.len() > 255 {
             return Err(Socks5CredentialsError::UsernameTooLong(username.len()));
         }
-        if password.len() > 255 {
-            return Err(Socks5CredentialsError::PasswordTooLong(password.len()));
+
+        let len = password.expose_secret().len();
+        if len > 255 {
+            return Err(Socks5CredentialsError::PasswordTooLong(len));
         }
+
         Ok(Socks5Credentials {
             username: username.to_string(),
-            password: password.to_string(),
+            password,
         })
     }
 
@@ -55,7 +59,7 @@ impl Socks5Credentials {
     /// `VER(0x01) | ULEN | UNAME | PLEN | PASSWD`.
     pub(crate) fn encode(&self) -> Vec<u8> {
         let user = self.username.as_bytes();
-        let pass = self.password.as_bytes();
+        let pass = self.password.expose_secret().as_bytes();
 
         let mut out = Vec::with_capacity(3 + user.len() + pass.len());
         out.push(AUTH_VERSION);
@@ -82,7 +86,7 @@ mod tests {
 
     #[test]
     fn encode_matches_rfc1929() {
-        let creds = Socks5Credentials::new("user", "pass").unwrap();
+        let creds = Socks5Credentials::new("user", SecretString::from("pass")).unwrap();
         // VER=1, ULEN=4, "user", PLEN=4, "pass"
         assert_eq!(
             creds.encode(),
@@ -96,18 +100,18 @@ mod tests {
     fn rejects_overlong_fields() {
         let long = "x".repeat(256);
         assert!(matches!(
-            Socks5Credentials::new(&long, "p"),
+            Socks5Credentials::new(&long, SecretString::from("p")),
             Err(Socks5CredentialsError::UsernameTooLong(256))
         ));
         assert!(matches!(
-            Socks5Credentials::new("u", &long),
+            Socks5Credentials::new("u", SecretString::from(long)),
             Err(Socks5CredentialsError::PasswordTooLong(256))
         ));
     }
 
     #[test]
     fn debug_redacts_password() {
-        let creds = Socks5Credentials::new("alice", "secret").unwrap();
+        let creds = Socks5Credentials::new("alice", SecretString::from("secret")).unwrap();
         let rendered = format!("{creds:?}");
         assert!(rendered.contains("alice"));
         assert!(!rendered.contains("secret"));

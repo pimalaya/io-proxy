@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `socks::v5::address::Socks5Domain`, a domain name of 1 to 255 bytes that only `Socks5Address::new` builds.
+
+- Added the `Eof` variant to `http::connect::HttpConnectError` and `socks::v5::connect::Socks5ConnectError`.
+
+  A coroutine resumed with an empty read (`Some(&[])`) completes with it. An exhaustive match on either enum needs the new arm.
+
+- Added `http::connect::HttpConnectError::InvalidHost`.
+
+- Added `socks::v5::address::Socks5AddressError::DomainEmpty`.
+
+### Changed
+
+- **BREAKING**: Changed `http::connect::HttpConnect::new` to return a `Result`, failing with `InvalidHost` on a host that is not a registered name or an IP literal.
+
+  An IPv6 literal is written between brackets, added when missing. `client::connect_http` keeps its signature and reports the rejection through `ProxyClientError::Http`.
+
+- **BREAKING**: Changed `socks::v5::address::Socks5Address::Domain` to hold a `Socks5Domain` instead of a `String`.
+
+- **BREAKING**: Changed `http::connect::HttpCredentials::new` and `socks::v5::auth::Socks5Credentials::new` to take the password as a `secrecy::SecretString`.
+
+- Added a dependency on [secrecy](https://crates.io/crates/secrecy) 0.10 for the proxy passwords.
+
+- Changed the `Debug` output of `coroutine::ProxyYield::WantsWrite` to the length of its bytes.
+
+### Fixed
+
+- Fixed `socks::v5::address::Socks5Address::new` accepting an empty domain name.
+
+- Fixed `socks::v5::connect::Socks5Connect` reporting an open tunnel when the read of the bound address was short or empty.
+
+- Fixed `http::connect::HttpConnect` asking for one more byte forever once the stream had ended.
+
+### Security
+
+- Fixed `http::connect::HttpConnect` writing a host holding a line break or a space into the request unchecked.
+
+- Fixed `http::connect::HttpConnect` printing the encoded `Proxy-Authorization` header through its `Debug` output.
+
 ## [0.1.1] - 2026-11-03
 
 ### Changed

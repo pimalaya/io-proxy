@@ -12,7 +12,25 @@ Every proxy handshake is exposed as an I/O-free coroutine: a resumable state mac
 Each coroutine SHALL implement `ProxyCoroutine`, declaring a `Yield` associated type for intermediate progress and a `Return` for terminal output, with a single `resume(&mut self, arg: Option<&[u8]>)` method returning `ProxyCoroutineState<Yield, Return>` (`Yielded` or `Complete`). `Return` SHALL be `Result<(), Error>` where `Error` is the protocol-specific handshake error.
 
 ### Requirement: Shared yield
-Coroutines SHALL yield the shared `ProxyYield`: `WantsWrite(Vec<u8>)` for bytes to send, and `WantsRead(usize)` for an exact number of bytes to read and hand back on the next resume. The caller SHALL pass `None` initially and after every `WantsWrite`, and `Some(data)` carrying exactly the requested `n` bytes after a `WantsRead(n)`.
+Coroutines SHALL yield the shared `ProxyYield`: `WantsWrite(Vec<u8>)` for bytes to send, and `WantsRead(usize)` for an exact number of bytes to read and hand back on the next resume. The caller SHALL pass `None` initially and after every `WantsWrite`, and after a `WantsRead(n)` either `Some(data)` carrying exactly the requested `n` bytes or `Some(&[])` when the stream ended before them.
+
+### Requirement: End of stream
+A coroutine resumed with an empty read (`Some(&[])`) while the handshake is not complete SHALL complete with the `Eof` variant of its handshake error. A length-framed coroutine handed a non-empty read of another length than the one it requested SHALL complete with its malformed-message error, never with success.
+
+#### Scenario: The proxy closes after the SOCKS5 reply head
+- **WHEN** `Socks5Connect` asked for the 6 bytes of an IPv4 bound address and is resumed with `Some(&[])`
+- **THEN** it completes with `Socks5ConnectError::Eof`
+
+#### Scenario: A short bound address
+- **WHEN** `Socks5Connect` asked for 6 bytes and is resumed with 2
+- **THEN** it completes with `Socks5ConnectError::Malformed`
+
+#### Scenario: The proxy closes inside the HTTP response head
+- **WHEN** `HttpConnect` asked for one more byte of the head and is resumed with `Some(&[])`
+- **THEN** it completes with `HttpConnectError::Eof`
+
+### Requirement: Yield redaction
+The `Debug` output of `ProxyYield` SHALL give the length of a `WantsWrite` payload and never its bytes, which may carry credentials.
 
 ### Requirement: No over-read
 A coroutine SHALL request only the bytes its framing needs, never an open-ended read. Length-framed protocols request whole messages by their exact length; delimiter-framed protocols request one byte at a time while scanning for their terminator. On completion the socket SHALL be positioned exactly on the target's first byte, with no tunnel payload consumed.
