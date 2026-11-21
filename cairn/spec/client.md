@@ -6,10 +6,10 @@ status: current
 
 # Client
 
-An optional standard, blocking pump driving the proxy coroutines over any `Read + Write` stream, behind the `client` feature. This is the only layer that touches std; the crate opens no connections of its own and negotiates no TLS. The caller connects to the proxy, runs a handshake, then owns the live tunnel.
+An optional standard, blocking pump driving the proxy coroutines over any `Read + Write` stream, behind the `std` feature. This is the only layer that touches std; the crate opens no connections of its own and negotiates no TLS. The caller connects to the proxy, runs a handshake, then owns the live tunnel.
 
 ### Requirement: Feature gate
-The pump SHALL be gated on the `client` feature (the only feature that pulls std into the build), and compiled only when at least one protocol feature (`socks5` or `http`) is also enabled.
+The pump SHALL be gated on the `std` feature (the only feature that pulls std into the build, implying `client`), and compiled only when at least one protocol feature (`socks5` or `http`) is also enabled.
 
 ### Requirement: Exact-read pump
 The pump SHALL drive a coroutine to completion, writing every `WantsWrite` in full and satisfying every `WantsRead(n)` with an exact read of `n` bytes, so on return the stream holds no buffered tunnel bytes. A stream that ends before those `n` bytes SHALL surface as the I/O error of the exact read.

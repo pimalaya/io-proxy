@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: Renamed the `client` feature, which gated the blocking pump, to `std`.
+
+  A consumer naming it moves to the new name:
+
+  ```toml
+  # before
+  io-proxy = { version = "0.2", default-features = false, features = ["socks5", "client"] }
+  # after
+  io-proxy = { version = "0.3", default-features = false, features = ["socks5", "std"] }
+  ```
+
+- **BREAKING**: Changed the `client` feature to gate the coroutine contract (the `coroutine` module). The `socks5` and `http` features imply it, so a consumer naming a protocol changes nothing.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added

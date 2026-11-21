@@ -4,8 +4,8 @@ Proxy client library for Rust
 
 This library is composed of 2 feature-gated layers:
 
-- Low-level **I/O-free** coroutines: no_std-compatible state machines containing the whole proxy handshake logic, usable anywhere
-- Mid-level **light client**: a standard, blocking pump driving a handshake over a stream you opened yourself
+- Low-level **I/O-free** coroutines: no_std-compatible state machines containing the whole proxy handshake logic, usable anywhere (`client` feature, implied by the `socks5` and `http` protocol features)
+- Mid-level **light client**: a standard, blocking pump driving a handshake over a stream you opened yourself (`std` feature)
 
 There is no full client with connection and TLS handling: the crate never opens a socket. It tunnels a stream you already hold, and any TLS negotiation happens on top of the established tunnel afterwards.
 

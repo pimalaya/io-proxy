@@ -17,15 +17,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["socks5", "http", "client"]
-socks5 = []
-http = ["dep:base64-codec"]
+default = ["client", "socks5", "http", "std"]
 client = []
+std = ["client"]
+socks5 = ["client"]
+http = ["client", "dep:base64-codec"]
 
 [[example]]
 name = "std_socks5"
 path = "examples/std_socks5.rs"
-required-features = ["client", "socks5"]
+required-features = ["std", "socks5"]
 
 [dev-dependencies]
 env_logger = "0.11"

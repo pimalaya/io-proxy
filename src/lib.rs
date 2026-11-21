@@ -8,8 +8,10 @@
 //! state machine that emits read and write requests instead of
 //! performing I/O itself: the caller owns the socket and pumps the
 //! coroutine with the bytes it read, whatever the runtime (blocking,
-//! async, in-memory tests). The `client` feature ships a ready-made
-//! std-blocking pump for callers who just want a tunnelled socket.
+//! async, in-memory tests). The `client` feature gates the coroutines,
+//! which each protocol feature implies, and the `std` feature ships a
+//! ready-made std-blocking pump for callers who just want a tunnelled
+//! socket.
 //!
 //! ## Scope
 //!
@@ -31,7 +33,7 @@
 //! One module per protocol, each behind a cargo feature, versioned from
 //! within (`socks::v5`) so a future SOCKS4 or protocol revision slots in
 //! alongside. [`coroutine`] spans them and holds the shared contract; the
-//! optional [`client`] module (`client` feature) is the std-blocking pump.
+//! optional [`client`] module (`std` feature) is the std-blocking pump.
 //!
 //! ## The coroutine contract
 //!
@@ -64,15 +66,20 @@
 //! [RFC 1929]: https://www.rfc-editor.org/rfc/rfc1929
 //! [RFC 9110 §9.3.6]: https://www.rfc-editor.org/rfc/rfc9110#section-9.3.6
 
-#[cfg(any(feature = "socks5", feature = "http"))]
-#[macro_use]
+#[cfg(feature = "client")]
+#[cfg_attr(any(feature = "socks5", feature = "http"), macro_use)]
 extern crate alloc;
-#[cfg(all(feature = "client", any(feature = "socks5", feature = "http")))]
+#[cfg(all(feature = "std", any(feature = "socks5", feature = "http")))]
 extern crate std;
 
-#[cfg(all(feature = "client", any(feature = "socks5", feature = "http")))]
+#[cfg(all(feature = "std", any(feature = "socks5", feature = "http")))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "std", any(feature = "socks5", feature = "http"))))
+)]
 pub mod client;
-#[cfg(any(feature = "socks5", feature = "http"))]
+#[cfg(feature = "client")]
+#[cfg_attr(docsrs, doc(cfg(feature = "client")))]
 pub mod coroutine;
 #[cfg(feature = "http")]
 pub mod http;

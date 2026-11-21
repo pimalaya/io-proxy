@@ -13,6 +13,8 @@
 //! tunnel — proving the tunnel carries the target's bytes and that the
 //! handshake left them unread (the no-over-read guarantee, for real).
 
+#![cfg(all(feature = "std", feature = "socks5", feature = "http"))]
+
 use std::{io::Read, net::TcpStream, time::Duration};
 
 use io_proxy::{
